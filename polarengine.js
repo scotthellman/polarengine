@@ -9,17 +9,24 @@ var cleanup = [];
 
 var object_counter = 0;
 
+var timestep_length = 50;
+
 function getNewObjectID(){
 	return object_counter++;
 }
 
-function PolarObject(r,theta,drawHandler){
+function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler){
 	this.id = getNewObjectID();
 	this.r = r;
 	this.theta = theta;
 	this.pos = [r,theta];
 	this.vel = [0,0];
-	this.drawHandler = drawHandler;
+	this.acc = [0,0];
+	this.old_vel = [0,0];
+	this.old_acc = [0,0];
+	this.size = drawn_radius;
+	this.drawHandler = function(ctx){drawHandler(ctx,this)};
+	this.handleCollision = function(collider){collisionHandler(this,collider)};
 }
 
 function init() {
@@ -32,9 +39,12 @@ function init() {
     origin = [400,400];
     ctx = canvas.getContext("2d");
 
-    registerObject(new PolarObject(40,0,circleHandler));
-    objects[0].vel = [0.75,0.05];
-    return setInterval(updateWorld, 50);
+    registerObject(new PolarObject(0,0,50,function(ctx,object){circleHandler(ctx,object)},function(){return;}));
+    registerObject(new PolarObject(0,0,width/2,function(ctx,object){circleHandler(ctx,object)},borderCollisionHandler));
+    objects[0].vel = [5,0.025];
+    objects[0].acc = [2,0.00];
+    previous_time = new Date().getTime();
+    return setInterval(updateWorld, timestep_length);
 }
 
 function registerObject(object){
@@ -53,27 +63,54 @@ function drawToCanvas() {
 	ctx.restore();
 }
 
-
-function circleHandler(context){
-	circ_radius = 50;
+function circleHandler(context,object){
 	ctx.beginPath();
 	ctx.strokeStyle = "black";
-	var x = this.pos[0] * Math.cos(this.pos[1]);
-	var y = this.pos[0] * Math.sin(this.pos[1]);
-	context.arc(x,y,circ_radius,0,Math.PI*2,true);	
+	var x = object.pos[0] * Math.cos(object.pos[1]);
+	var y = object.pos[0] * Math.sin(object.pos[1]);
+	context.arc(x,y,object.size,0,Math.PI*2,true);	
 	ctx.stroke();
 }
 
-function timestep(){
+function borderCollisionHandler(object,collider){
+	collider.vel[0] *= -0.9;
+	collider.vel[1] *= 0.9;
+	collider.pos[0] = object.size - collider.size - 1;
+}
+
+function timestep(delta){
 	for(var key in objects){
 		if(objects.hasOwnProperty(key)){
-			objects[key].pos[0] += objects[key].vel[0];
-			objects[key].pos[1] += objects[key].vel[1];
+			objects[key].vel[0] += delta/timestep_length * objects[key].acc[0];
+			objects[key].vel[1] += delta/timestep_length * objects[key].acc[1];
+			objects[key].pos[0] += delta/timestep_length * (objects[key].vel[0] + objects[key].old_vel[0])/2;
+			objects[key].pos[1] += delta/timestep_length * (objects[key].vel[1] + objects[key].old_vel[1])/2;
+			objects[key].pos[1] %= 2*Math.PI;
+			objects[key].old_vel = objects[key].vel;
+		}
+	}
+	//resolve collisions
+	for(var key in objects){
+		if(objects.hasOwnProperty(key)){
+			for(var other in objects){
+				if(objects.hasOwnProperty(other) && other != key){
+					var other_r = objects[other].pos[0];
+					var obj_r = objects[key].pos[0];
+					var other_theta = objects[other].pos[1];
+					var obj_theta = objects[key].pos[1];
+					var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
+					if(distance > Math.abs(objects[other].size - objects[key].size)){
+						objects[key].handleCollision(objects[other]);
+					}
+				}
+			}
 		}
 	}
 }
 
 function updateWorld(){
-	timestep();
+	var delta = new Date().getTime() - previous_time; 
+	timestep(delta);
 	drawToCanvas();
+    previous_time = new Date().getTime();
 }
