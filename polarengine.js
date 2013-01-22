@@ -7,6 +7,7 @@ var origin;
 var cleanup = [];
 var object_counter = 0;
 var timestep_length = 50;
+var debug = true;
 
 var border_id;
 var player_id;
@@ -16,10 +17,10 @@ jQuery(document).ready(function(){
 	$(document).keydown(function(e){
 		var key = (e.keyCode ? e.keyCode : e.charCode);
 		if(key == 37){
-			objects[player_id].vel[1] = 0.05;
+			objects[player_id].vel[1] = 0.1;
 		}
 		else if(key == 39){
-			objects[player_id].vel[1] = -0.05;
+			objects[player_id].vel[1] = -0.1;
 		}
 	});
 	$(document).keyup(function(e){
@@ -75,7 +76,6 @@ function init() {
 	player_id = player.id;
 	registerObject(player);
 	registerObject(new PolarObject(0,0,50,circleHandler,function(){return;}));
-	registerObject(new PolarObject(0,0,20,circleHandler,flipperCollisionHandler));
 	objects[2].vel = [5,0.05];
 	objects[2].acc = [2,0.00];
 	previous_time = new Date().getTime();
@@ -105,11 +105,22 @@ function circleHandler(context,object){
 	var x = object.pos[0] * Math.cos(object.pos[1]);
 	var y = object.pos[0] * Math.sin(object.pos[1]);
 	context.arc(x,y,object.size,0,Math.PI*2,true);	
-	context.moveTo(x,y);
-	var next_x = (object.vel[0] + object.pos[0]) * Math.cos(object.pos[1] + object.vel[1]);
-	var next_y = (object.vel[0] + object.pos[0]) * Math.sin(object.pos[1] + object.vel[1]);
-	context.lineTo(next_x,next_y);
-	ctx.stroke();
+	context.stroke();
+	if(debug){
+		context.beginPath();
+		context.moveTo(x,y);
+		context.lineWidth = 1;
+		var next_x = (object.vel[0] + object.pos[0]) * Math.cos(object.pos[1] + object.vel[1]);
+		var next_y = (object.vel[0] + object.pos[0]) * Math.sin(object.pos[1] + object.vel[1]);
+		context.lineTo(next_x,next_y);
+		context.stroke();
+		context.beginPath();
+		context.moveTo(x,y);
+		context.lineWidth = 4;
+		context.strokeStyle = "blue";
+		context.lineTo(x + 25*Math.cos(object.pos[1]),y+25*Math.sin(object.pos[1]));
+		context.stroke();
+	}
 }
 
 function playerHandler(context,object){
@@ -123,6 +134,10 @@ function playerHandler(context,object){
 }
 
 function borderCollisionHandler(border,collider){
+	if(collider.pos[0] < 0){
+		collider.pos[0] = -1;
+		collider.pos[1] += Math.PI;
+	}
 	if(getAngularDistance(collider.pos[1], objects[player_id].pos[1]) < player_width){
 		collider.vel[0] *= -1.5;
 		collider.vel[1] *= 0.0;
@@ -135,22 +150,22 @@ function borderCollisionHandler(border,collider){
 	}
 }
 
-function flipperCollisionHandler(object,collider){
-	console.log(collider.id + "," + collider.old_pos + "," + collider.pos);
-	if(collider.old_pos[0] < object.size){
-		//we've already flipped this fella
-		return;
-	}
-	else{
-		collider.pos[0] *= -1;
-		collider.vel[0] *= -1;
-		collider.old_vel[0] *= -1;
-		collider.acc[0] *= -1;
-		collider.old_acc[0] *= -1;
+// function flipperCollisionHandler(object,collider){
+// 	if(Math.abs(collider.old_pos[0]) < object.size){
+// 		//we've already flipped this fella
+// 		return;
+// 	}
+// 	else{
+// 		console.log("flippin");
+// 		collider.pos[0] *= -1;
+// 		collider.vel[0] *= -1;
+// 		collider.old_vel[0] *= -1;
+// 		// collider.acc[0] *= -1;
+// 		// collider.old_acc[0] *= -1;
 
-		collider.pos[1] += Math.PI;
-	}
-}
+// 		collider.pos[1] += Math.PI;
+// 	}
+// }
 
 function mod(a,b){
 	if(a >= 0) return a % b;
