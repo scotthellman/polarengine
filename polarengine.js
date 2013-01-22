@@ -2,14 +2,14 @@ var objects = {};
 var ctx;
 var width;
 var height;
-
+var border_radius;
 var origin;
-
 var cleanup = [];
-
 var object_counter = 0;
-
 var timestep_length = 50;
+
+var border_id;
+var player_id;
 
 function getNewObjectID(){
 	return object_counter++;
@@ -35,14 +35,20 @@ function init() {
     canvas.height = 800;
     width = canvas.width;
     height = canvas.height;
+    border_radius = width/2;
 
-    origin = [400,400];
+    origin = [border_radius,border_radius];
     ctx = canvas.getContext("2d");
 
-    registerObject(new PolarObject(0,0,50,function(ctx,object){circleHandler(ctx,object)},function(){return;}));
-    registerObject(new PolarObject(0,0,width/2,function(ctx,object){circleHandler(ctx,object)},borderCollisionHandler));
-    objects[0].vel = [5,0.025];
-    objects[0].acc = [2,0.00];
+    var border = new PolarObject(0,0,width/2,circleHandler,borderCollisionHandler);
+    border_id = border.id;
+    registerObject(border);
+    var player = new PolarObject(0,0,50,playerHandler,function(){return;});
+    player_id = player.id;
+    registerObject(player);
+    registerObject(new PolarObject(0,0,50,circleHandler,function(){return;}));
+    objects[2].vel = [5,0.025];
+    objects[2].acc = [2,0.00];
     previous_time = new Date().getTime();
     return setInterval(updateWorld, timestep_length);
 }
@@ -72,6 +78,10 @@ function circleHandler(context,object){
 	ctx.stroke();
 }
 
+function playerHandler(context,object){
+	return;
+}
+
 function borderCollisionHandler(object,collider){
 	collider.vel[0] *= -0.9;
 	collider.vel[1] *= 0.9;
@@ -92,16 +102,29 @@ function timestep(delta){
 	//resolve collisions
 	for(var key in objects){
 		if(objects.hasOwnProperty(key)){
-			for(var other in objects){
-				if(objects.hasOwnProperty(other) && other != key){
-					var other_r = objects[other].pos[0];
-					var obj_r = objects[key].pos[0];
-					var other_theta = objects[other].pos[1];
-					var obj_theta = objects[key].pos[1];
-					var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
-					if(distance > Math.abs(objects[other].size - objects[key].size)){
-						objects[key].handleCollision(objects[other]);
+			if(key != border_id){
+				for(var other in objects){
+					if(objects.hasOwnProperty(other) && other != border_id && other != key){
+						var other_r = objects[other].pos[0];
+						var obj_r = objects[key].pos[0];
+						var other_theta = objects[other].pos[1];
+						var obj_theta = objects[key].pos[1];
+						var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
+						if(distance < Math.abs(objects[other].size - objects[key].size)){
+							objects[key].handleCollision(objects[other]);
+						}
 					}
+				}
+			}
+		}
+	}
+	//check for game border collisions
+	for(var key in objects){
+		if(objects.hasOwnProperty(key)){
+			//for now we're just elevating index 0's importance and assuming it's always the game border
+			if(key != border_id){
+				if(objects[key].pos[0] + objects[key].size > border_radius){
+					objects[border_id].handleCollision(objects[key]);
 				}
 			}
 		}
