@@ -49,6 +49,7 @@ function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler){
 	this.pos = [r,theta];
 	this.vel = [0,0];
 	this.acc = [0,0];
+	this.old_pos = [0,0];
 	this.old_vel = [0,0];
 	this.old_acc = [0,0];
 	this.size = drawn_radius;
@@ -74,6 +75,7 @@ function init() {
 	player_id = player.id;
 	registerObject(player);
 	registerObject(new PolarObject(0,0,50,circleHandler,function(){return;}));
+	registerObject(new PolarObject(0,0,20,circleHandler,flipperCollisionHandler));
 	objects[2].vel = [5,0.05];
 	objects[2].acc = [2,0.00];
 	previous_time = new Date().getTime();
@@ -118,15 +120,31 @@ function playerHandler(context,object){
 
 function borderCollisionHandler(border,collider){
 	if(getAngularDistance(collider.pos[1], objects[player_id].pos[1]) < player_width){
-		console.log("player collision " + collider.pos[1] + "," + objects[player_id].pos[1] + "<" + player_width);
-		// collider.vel[0] *= -1.5;
-		// collider.vel[1] *= 1.5;
+		collider.vel[0] *= -1.5;
+		collider.vel[1] *= 0.0;
 		collider.pos[0] = border.size - collider.size - 1;
 	}
 	else{
-		collider.vel[0] *= -0.0;
-		// collider.vel[1] *= 0.9;
+		collider.vel[0] *= -0.9;
+		collider.vel[1] *= 0.9;
 		collider.pos[0] = border.size - collider.size - 1;
+	}
+}
+
+function flipperCollisionHandler(object,collider){
+	console.log(collider.id + "," + collider.old_pos + "," + collider.pos);
+	if(collider.old_pos[0] < object.size){
+		//we've already flipped this fella
+		return;
+	}
+	else{
+		collider.pos[0] *= -1;
+		collider.vel[0] *= -1;
+		collider.old_vel[0] *= -1;
+		collider.acc[0] *= -1;
+		collider.old_acc[0] *= -1;
+
+		collider.pos[1] += Math.PI;
 	}
 }
 
@@ -148,12 +166,13 @@ function getAngularDistance(a,b){
 function timestep(delta){
 	for(var key in objects){
 		if(objects.hasOwnProperty(key)){
+			objects[key].old_pos = objects[key].pos.slice();
+			objects[key].old_vel = objects[key].vel.slice();
 			objects[key].vel[0] += delta/timestep_length * objects[key].acc[0];
 			objects[key].vel[1] += delta/timestep_length * objects[key].acc[1];
 			objects[key].pos[0] += delta/timestep_length * (objects[key].vel[0] + objects[key].old_vel[0])/2;
 			objects[key].pos[1] += delta/timestep_length * (objects[key].vel[1] + objects[key].old_vel[1])/2;
 			objects[key].pos[1] = mod(objects[key].pos[1],2*Math.PI);
-			objects[key].old_vel = objects[key].vel;
 		}
 	}
 	//resolve collisions
@@ -180,7 +199,7 @@ function timestep(delta){
 	for(var key in objects){
 		if(objects.hasOwnProperty(key)){
 			if(key != border_id){
-				if(objects[key].pos[0] + objects[key].size > border_radius){
+				if(Math.abs(objects[key].pos[0]) + objects[key].size > border_radius){
 					objects[border_id].handleCollision(objects[key]);
 				}
 			}
