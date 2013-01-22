@@ -99,12 +99,16 @@ function drawToCanvas() {
 }
 
 function circleHandler(context,object){
-	ctx.beginPath();
-	ctx.strokeStyle = "black";
-	ctx.lineWidth = 2;
+	context.beginPath();
+	context.strokeStyle = "black";
+	context.lineWidth = 2;
 	var x = object.pos[0] * Math.cos(object.pos[1]);
 	var y = object.pos[0] * Math.sin(object.pos[1]);
 	context.arc(x,y,object.size,0,Math.PI*2,true);	
+	context.moveTo(x,y);
+	var next_x = (object.vel[0] + object.pos[0]) * Math.cos(object.pos[1] + object.vel[1]);
+	var next_y = (object.vel[0] + object.pos[0]) * Math.sin(object.pos[1] + object.vel[1]);
+	context.lineTo(next_x,next_y);
 	ctx.stroke();
 }
 
