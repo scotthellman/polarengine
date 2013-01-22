@@ -38,14 +38,18 @@ var PolarEngine = (function() {
 		canvas.height = 800;
 		width = canvas.width;
 		height = canvas.height;
-		border_radius = width/2;
-		origin = [border_radius,border_radius];
+		PolarEngine.border_radius = width/2;
+		PolarEngine.origin = [border_radius,border_radius];
 		ctx = canvas.getContext("2d");
 		previous_time = new Date().getTime();
 	}
 
 	function registerObject(object){
 		objects[object.id] = object;
+	}
+
+	function removeObject(object){
+		delete objects[object.id];
 	}
 
 	function drawToCanvas() {
@@ -175,6 +179,7 @@ var PolarEngine = (function() {
 		update : updateWorld,
 		PolarObject : PolarObject,
 		register : registerObject,
+		remove : removeObject,
 		circleHandler : circleHandler,
 		borderCollisionHandler : borderCollisionHandler,
 		player_id : player_id,
