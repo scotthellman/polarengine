@@ -14,6 +14,7 @@ var PolarEngine = (function() {
 	var player_id;
 	var player_width = 0.20;
 	var timestep_length;
+	var buffer;
 	function getNewObjectID(){
 		return object_counter++;
 	}
@@ -40,6 +41,7 @@ var PolarEngine = (function() {
 		height = canvas.height;
 		PolarEngine.border_radius = width/2;
 		PolarEngine.origin = [border_radius,border_radius];
+		buffer = document.createElement('canvas');
 		ctx = canvas.getContext("2d");
 		previous_time = new Date().getTime();
 	}
@@ -137,15 +139,15 @@ var PolarEngine = (function() {
 		//resolve collisions
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
-				if(key != PolarEngine.border_id){
+				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
 					for(var other in objects){
-						if(objects.hasOwnProperty(other) && other != PolarEngine.border_id && other != key){
+						if(objects.hasOwnProperty(other) && other != PolarEngine.border_id && other != PolarEngine.player_id && other != key){
 							var other_r = objects[other].pos[0];
 							var obj_r = objects[key].pos[0];
 							var other_theta = objects[other].pos[1];
 							var obj_theta = objects[key].pos[1];
 							var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
-							if(distance < Math.abs(objects[other].size - objects[key].size)){
+							if(distance < Math.abs(objects[other].size + objects[key].size)){
 								objects[key].handleCollision(objects[other]);
 							}
 						}
