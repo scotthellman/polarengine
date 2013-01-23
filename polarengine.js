@@ -196,6 +196,10 @@ var PolarEngine = (function() {
 			if(objects.hasOwnProperty(key)){
 				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
 					for(var other in objects){
+						if(!objects[key]){
+							//the object must have destroyed itself
+							continue;
+						}
 						if(objects.hasOwnProperty(other) && other != PolarEngine.border_id && other != PolarEngine.player_id && other != key){
 							var other_r = objects[other].pos[0];
 							var obj_r = objects[key].pos[0];
