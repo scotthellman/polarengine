@@ -15,11 +15,13 @@ var PolarEngine = (function() {
 	var player_width = 0.20;
 	var timestep_length;
 	var buffer;
+	var shadow_buffer;
+	var true_canvas;
 	function getNewObjectID(){
 		return object_counter++;
 	}
 
-	function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler){
+	function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler,shadowHandler){
 		this.id = getNewObjectID();
 		this.r = r;
 		this.theta = theta;
@@ -30,19 +32,25 @@ var PolarEngine = (function() {
 		this.old_vel = [0,0];
 		this.old_acc = [0,0];
 		this.size = drawn_radius;
-		this.drawHandler = function(ctx){drawHandler(ctx,this)};
-		this.handleCollision = function(collider){collisionHandler(this,collider)};
+		this.drawHandler = drawHandler;
+		this.handleCollision = collisionHandler;
+		this.shadowHandler = shadowHandler;
 	}
 
 	function init(canvas) {
 		canvas.width = 800;
 		canvas.height = 800;
+		true_canvas = canvas;
 		width = canvas.width;
 		height = canvas.height;
 		PolarEngine.border_radius = width/2;
 		PolarEngine.origin = [border_radius,border_radius];
 		buffer = document.createElement('canvas');
-		ctx = canvas.getContext("2d");
+		buffer.width = width;
+		buffer.height = height;
+		shadow_buffer = document.createElement('canvas');
+		shadow_buffer.width = width;
+		shadow_buffer.height = height;
 		previous_time = new Date().getTime();
 	}
 
@@ -54,16 +62,50 @@ var PolarEngine = (function() {
 		delete objects[object.id];
 	}
 
-	function drawToCanvas() {
+	function drawToCanvas(){
+		true_canvas.getContext('2d').drawImage(buffer,0,0);
+	}
+
+	function drawBase() {
+		var ctx = buffer.getContext('2d');
 		ctx.save();
-		ctx.clearRect(0,0,width,height);
+		ctx.fillStyle = '#fff';
+		ctx.fillRect(0,0,buffer.width,buffer.height);
 		ctx.translate(origin[0],origin[1]);
 		for (var key in objects) {
-			if (objects.hasOwnProperty(key)) {
-				objects[key].drawHandler(ctx);
+			if (objects.hasOwnProperty(key) && objects[key].drawHandler) {
+				objects[key].drawHandler(ctx,objects[key]);
 			}
 		}
 		ctx.restore();
+	}
+
+	function drawShadows() {
+		var context = shadow_buffer.getContext('2d');
+		context.save();
+		context.clearRect(0,0,width,height);
+		context.fillStyle = 'rgba(0,0,0,0.7)' //'#000';
+		context.fillRect(0,0,800,800);
+		context.translate(origin[0],origin[1]);
+		context.globalCompositeOperation = 'destination-out';
+		for (var key in objects) {
+			if (objects.hasOwnProperty(key) && objects[key].shadowHandler) {
+				objects[key].shadowHandler(context,objects[key]);
+			}
+		}
+		buffer.getContext('2d').drawImage(shadow_buffer,0,0);
+		context.globalCompositeOperation = 'source-over';
+		context.clearRect(-400,-400,shadow_buffer.width,shadow_buffer.height);
+		context.fillStyle = '#000';
+		context.fillRect(-400,-400,800,800);
+		context.globalCompositeOperation = 'destination-out';
+		context.beginPath();
+		context.arc(0,0,400,0,2*Math.PI);
+		context.fillStyle = '#000';
+		context.fill();
+		context.closePath();
+		context.restore();
+		buffer.getContext('2d').drawImage(shadow_buffer,0,0);
 	}
 
 	function circleHandler(context,object){
@@ -89,6 +131,19 @@ var PolarEngine = (function() {
 			context.lineTo(x + 25*Math.cos(object.pos[1]),y+25*Math.sin(object.pos[1]));
 			context.stroke();
 		}
+	}
+
+	function circleShadowHandler(context,object){
+		context.beginPath();
+		var x = object.pos[0] * Math.cos(object.pos[1]);
+		var y = object.pos[0] * Math.sin(object.pos[1]);
+		context.arc(x,y,object.size*15 + 2,0,2*Math.PI);
+		var grd = context.createRadialGradient(x,y,object.size,x,y,object.size*15);
+		grd.addColorStop(0,'rgba(0,0,0,1)');
+		grd.addColorStop(1,'rgba(0,0,0,0)');
+		context.fillStyle = grd;
+		context.fill();
+		context.closePath();
 	}
 
 
@@ -148,7 +203,7 @@ var PolarEngine = (function() {
 							var obj_theta = objects[key].pos[1];
 							var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
 							if(distance < Math.abs(objects[other].size + objects[key].size)){
-								objects[key].handleCollision(objects[other]);
+								objects[key].handleCollision(objects[key],objects[other]);
 							}
 						}
 					}
@@ -159,9 +214,9 @@ var PolarEngine = (function() {
 		//check for game border collisions
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
-				if(key != PolarEngine.border_id){
+				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
 					if(Math.abs(objects[key].pos[0]) + objects[key].size > PolarEngine.border_radius){
-						objects[PolarEngine.border_id].handleCollision(objects[key]);
+						objects[PolarEngine.border_id].handleCollision(objects[PolarEngine.border_id],objects[key]);
 					}
 				}
 			}
@@ -172,6 +227,8 @@ var PolarEngine = (function() {
 	function updateWorld(){
 		var delta = new Date().getTime() - previous_time; 
 		timestep(delta);
+		drawBase();
+		drawShadows();
 		drawToCanvas();
 		previous_time = new Date().getTime();
 	}
@@ -183,6 +240,7 @@ var PolarEngine = (function() {
 		register : registerObject,
 		remove : removeObject,
 		circleHandler : circleHandler,
+		circleShadowHandler : circleShadowHandler,
 		borderCollisionHandler : borderCollisionHandler,
 		player_id : player_id,
 		border_id : border_id,
