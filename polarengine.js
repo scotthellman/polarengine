@@ -21,7 +21,7 @@ var PolarEngine = (function() {
 		return object_counter++;
 	}
 
-	function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler,shadowHandler){
+	function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler,shadowHandler,destructionHandler,physicsUpdater,elastic_interaction){
 		this.id = getNewObjectID();
 		this.r = r;
 		this.theta = theta;
@@ -35,6 +35,19 @@ var PolarEngine = (function() {
 		this.drawHandler = drawHandler;
 		this.handleCollision = collisionHandler;
 		this.shadowHandler = shadowHandler;
+		this.destructionHandler = destructionHandler;
+		this.physicsUpdater = physicsUpdater ? physicsUpdater : function(){this.acc = [0,0];};
+		this.elastic = !!elastic_interaction;
+		this.mass = 1;
+	}
+
+	PolarObject.prototype.destroy = function (){
+		if(objects[this.id]){
+			delete objects[this.id];
+		}
+		if(this.destructionHandler){
+			this.destructionHandler();
+		}
 	}
 
 	function init(canvas) {
@@ -179,6 +192,95 @@ var PolarEngine = (function() {
 		return Math.min(Math.abs(a-b),mod(a-b,2*Math.PI));
 	}
 
+	function mapRToRadians(r){
+		return r/50;
+	}
+
+	function mapThetaToPixels(theta){
+		return theta*50;
+	}
+
+	function signum(x) { 
+		return x > 0 ? 1 : x < 0 ? -1 : 0;
+	}
+
+	function calculateDistance(object,other){
+		var other_r = other.pos[0]
+		var obj_r = object.pos[0];
+		var other_theta = other.pos[1]
+		var obj_theta = object.pos[1];
+		var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
+		return distance;
+	}
+
+	function elasticCollision(object,other){
+		var obj_mag = Math.sqrt(mapRToRadians(object.vel[0])*mapRToRadians(object.vel[0]) + (object.vel[1]*object.vel[1]));
+		var other_mag = Math.sqrt(mapRToRadians(other.vel[0])*mapRToRadians(other.vel[0]) + (other.vel[1]*other.vel[1]));
+
+		var obj_signs = [signum(object.vel[0]),signum(object.vel[1])];
+		if(obj_signs[0] == 0){
+			obj_signs[0] = -signum(object.pos[0]-other.pos[0]);
+		}
+		if(obj_signs[1] == 0){
+			obj_signs[1] = -signum(mod(object.pos[1]-other.pos[1],2*Math.PI));
+		}
+		var other_signs = [signum(other.vel[0]),signum(other.vel[1])];
+		if(other_signs[0] == 0){
+			other_signs[0] = -signum(other.pos[0]-object.pos[0]);
+		}
+		if(other_signs[1] == 0){
+			other_signs[1] = -signum(mod(other.pos[1]-object.pos[1],2*Math.PI));
+		}
+
+		//impact tells us how the two dimensions are related in the collision
+		var pos_mag = object.size + other.size;
+		var impact = Math.abs(Math.asin((object.pos[0]-other.pos[0])/pos_mag));
+		if(isNaN(impact)) impact = 1;
+
+		object.vel[0] = impact * mapThetaToPixels((obj_signs[0]*obj_mag*(object.mass - other.mass) + 2 * other_signs[0] * other.mass * other_mag)/(object.mass + other.mass));
+		object.vel[1] = (1-impact) * (obj_signs[1] * obj_mag*(object.mass - other.mass) + 2 * other_signs[1] * other.mass * other_mag)/(object.mass + other.mass);
+		object.old_vel[0] = object.vel[0];
+		object.old_vel[1] = object.vel[1];
+		console.log(object.vel);
+
+		other.vel[0] = impact * mapThetaToPixels((other_signs[0] * other_mag*(other.mass - object.mass) + 2 * obj_signs[0] * object.mass * obj_mag)/(object.mass + other.mass));
+		other.vel[1] = (1-impact) * (other_signs[1] * other_mag*(other.mass - object.mass) + 2 * obj_signs[1] * object.mass * obj_mag)/(object.mass + other.mass);
+		other.old_vel[0] = other.vel[0];
+		other.old_vel[1] = other.vel[1];
+		console.log(other.vel);
+
+		//now move everything so it's nonintersecting
+		//go to cartesian for this, doing it with theta is a pain
+		var move_delta = [0,0];
+		var object_xy = [object.pos[0] * Math.cos(object.pos[1]),object.pos[0] * Math.sin(object.pos[1])];
+		var other_xy = [other.pos[0] * Math.cos(other.pos[1]),other.pos[0] * Math.sin(other.pos[1])];
+
+		move_delta[0] = object_xy[0] - other_xy[0];
+		move_delta[1] = object_xy[1] - other_xy[1];
+
+		var mag = Math.sqrt(move_delta[0]*move_delta[0] + move_delta[1]*move_delta[1]);
+		move_delta[0] /= mag;
+		move_delta[1] /= mag;
+
+		var desired_distance = object.size + other.size;
+		var current_distance = calculateDistance(object,other);
+		move_delta[0] *= desired_distance-current_distance;
+		move_delta[1] *= desired_distance-current_distance;
+
+		object_xy[0] += move_delta[0]/2;
+		object_xy[1] += move_delta[1]/2;
+
+		other_xy[0] -= move_delta[0]/2;
+		other_xy[1] -= move_delta[1]/2;
+
+		//now back to polar
+		object.pos[0] = Math.sqrt(object_xy[0] * object_xy[0] + object_xy[1]*object_xy[1]);
+		object.pos[1] = Math.atan2(object_xy[1],object_xy[0]);
+
+		other.pos[0] = Math.sqrt(other_xy[0] * other_xy[0] + other_xy[1]*other_xy[1]);
+		other.pos[1] = Math.atan2(other_xy[1],other_xy[0]);
+	}
+
 	function timestep(delta){
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
@@ -192,22 +294,23 @@ var PolarEngine = (function() {
 			}
 		}
 		//resolve collisions
+		var seen = {};
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
+				seen[key] = 1;
 				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
+					var current = objects[key];
 					for(var other in objects){
-						if(!objects[key]){
-							//the object must have destroyed itself
-							continue;
-						}
-						if(objects.hasOwnProperty(other) && other != PolarEngine.border_id && other != PolarEngine.player_id && other != key){
-							var other_r = objects[other].pos[0];
-							var obj_r = objects[key].pos[0];
-							var other_theta = objects[other].pos[1];
-							var obj_theta = objects[key].pos[1];
-							var distance = Math.sqrt(other_r*other_r + obj_r*obj_r - 2*other_r*obj_r*Math.cos(obj_theta - other_theta));
-							if(distance < Math.abs(objects[other].size + objects[key].size)){
-								objects[key].handleCollision(objects[key],objects[other]);
+						if(!seen[other] && objects.hasOwnProperty(other) && other != PolarEngine.border_id && other != PolarEngine.player_id){
+							var other_obj = objects[other];
+							var distance = calculateDistance(current,other_obj);
+							if(distance < Math.abs(objects[other].size + current.size)){
+								//apply elastic collisions
+								if(current.elastic && other_obj.elastic){
+									elasticCollision(current,other_obj);
+								}
+								current.handleCollision(current,other_obj);
+								other_obj.handleCollision(other_obj,current);
 							}
 						}
 					}
@@ -215,13 +318,14 @@ var PolarEngine = (function() {
 			}
 		}
 
-		//check for game border collisions
+		//check for game border collisions and apply physics functions
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
 				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
 					if(Math.abs(objects[key].pos[0]) + objects[key].size > PolarEngine.border_radius){
 						objects[PolarEngine.border_id].handleCollision(objects[PolarEngine.border_id],objects[key]);
 					}
+					objects[key].physicsUpdater(delta);
 				}
 			}
 		}
