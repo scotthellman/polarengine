@@ -333,12 +333,13 @@ var PolarEngine = (function() {
 
 
 	function updateWorld(){
-		var delta = new Date().getTime() - previous_time; 
+		var current = new Date().getTime();
+		var delta = current - previous_time; 
+		previous_time = current;
 		timestep(delta);
 		drawBase();
 		drawShadows();
 		drawToCanvas();
-		previous_time = new Date().getTime();
 	}
 
 	return {
