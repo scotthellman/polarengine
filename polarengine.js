@@ -241,13 +241,11 @@ var PolarEngine = (function() {
 		object.vel[1] = (1-impact) * (obj_signs[1] * obj_mag*(object.mass - other.mass) + 2 * other_signs[1] * other.mass * other_mag)/(object.mass + other.mass);
 		object.old_vel[0] = object.vel[0];
 		object.old_vel[1] = object.vel[1];
-		console.log(object.vel);
 
 		other.vel[0] = impact * mapThetaToPixels((other_signs[0] * other_mag*(other.mass - object.mass) + 2 * obj_signs[0] * object.mass * obj_mag)/(object.mass + other.mass));
 		other.vel[1] = (1-impact) * (other_signs[1] * other_mag*(other.mass - object.mass) + 2 * obj_signs[1] * object.mass * obj_mag)/(object.mass + other.mass);
 		other.old_vel[0] = other.vel[0];
 		other.old_vel[1] = other.vel[1];
-		console.log(other.vel);
 
 		//now move everything so it's nonintersecting
 		//go to cartesian for this, doing it with theta is a pain
