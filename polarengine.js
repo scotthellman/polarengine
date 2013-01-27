@@ -21,7 +21,7 @@ var PolarEngine = (function() {
 		return object_counter++;
 	}
 
-	function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler,shadowHandler,destructionHandler,physicsUpdater,elastic_interaction){
+	function PolarObject(r,theta,drawn_radius,drawHandler,collisionHandler,shadowHandler,destructionHandler,physicsUpdater,elastic_interaction,interacting,effectHandler){
 		this.id = getNewObjectID();
 		this.r = r;
 		this.theta = theta;
@@ -37,8 +37,10 @@ var PolarEngine = (function() {
 		this.shadowHandler = shadowHandler;
 		this.destructionHandler = destructionHandler;
 		this.physicsUpdater = physicsUpdater ? physicsUpdater : function(){this.acc = [0,0];};
+		this.effectHandler = effectHandler ? effectHandler : function(){return;};
 		this.elastic = !!elastic_interaction;
 		this.mass = 1;
+		this.interacting = !!interacting;
 	}
 
 	PolarObject.prototype.destroy = function (){
@@ -296,10 +298,10 @@ var PolarEngine = (function() {
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
 				seen[key] = 1;
-				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
+				if(objects[key].interacting){
 					var current = objects[key];
 					for(var other in objects){
-						if(!seen[other] && objects.hasOwnProperty(other) && other != PolarEngine.border_id && other != PolarEngine.player_id){
+						if(!seen[other] && objects.hasOwnProperty(other) && objects[other].interacting){
 							var other_obj = objects[other];
 							var distance = calculateDistance(current,other_obj);
 							if(distance < Math.abs(objects[other].size + current.size)){
@@ -324,6 +326,7 @@ var PolarEngine = (function() {
 						objects[PolarEngine.border_id].handleCollision(objects[PolarEngine.border_id],objects[key]);
 					}
 					objects[key].physicsUpdater(delta);
+					objects[key].effectHandler(delta);
 				}
 			}
 		}
