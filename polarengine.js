@@ -8,7 +8,7 @@ var PolarEngine = (function() {
 	var origin = [400,400];
 	var cleanup = [];
 	var object_counter = 0;
-	var debug = true;
+	var debug = false;
 
 	var border_id;
 	var player_id;
@@ -99,7 +99,7 @@ var PolarEngine = (function() {
 		var context = shadow_buffer.getContext('2d');
 		context.save();
 		context.clearRect(0,0,width,height);
-		context.fillStyle = 'rgba(0,0,0,0.7)' //'#000';
+		context.fillStyle = 'rgba(0,0,0,1)' //'#000';
 		context.fillRect(0,0,800,800);
 		context.translate(origin[0],origin[1]);
 		context.globalCompositeOperation = 'destination-out';
@@ -325,9 +325,9 @@ var PolarEngine = (function() {
 					if(Math.abs(objects[key].pos[0]) + objects[key].size > PolarEngine.border_radius){
 						objects[PolarEngine.border_id].handleCollision(objects[PolarEngine.border_id],objects[key]);
 					}
-					objects[key].physicsUpdater(delta);
-					objects[key].effectHandler(delta);
 				}
+				objects[key].physicsUpdater(delta);
+				objects[key].effectHandler(delta);
 			}
 		}
 	}
@@ -356,6 +356,8 @@ var PolarEngine = (function() {
 		border_id : border_id,
 		border_radius : border_radius,
 		player_width : player_width,
-		timestep_length : timestep_length
+		timestep_length : timestep_length,
+		getAngularDistance : getAngularDistance,
+		mod : mod
 	}
 })();
