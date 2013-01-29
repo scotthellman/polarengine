@@ -12,11 +12,12 @@ var PolarEngine = (function() {
 
 	var border_id;
 	var player_id;
-	var player_width = 0.20;
+	var player_width = 0.25;
 	var timestep_length;
 	var buffer;
 	var shadow_buffer;
 	var true_canvas;
+	var misses = 0;
 	function getNewObjectID(){
 		return object_counter++;
 	}
@@ -164,19 +165,27 @@ var PolarEngine = (function() {
 
 	function borderCollisionHandler(border,collider){
 		if(collider.pos[0] < 0){
-			collider.pos[0] = -1;
+			collider.pos[0] *= -1;
+			collider.vel[0] *= -1;
 			collider.pos[1] += Math.PI;
+			collider.pos[1] = mod(collider.pos[1],2*Math.PI);
 		}
-		if(getAngularDistance(collider.pos[1], objects[PolarEngine.player_id].pos[1]) < player_width){
-			collider.vel[0] *= -1.5;
-			collider.vel[1] = collider.vel[1]*0.5 + objects[PolarEngine.player_id].vel[1];
-			collider.pos[0] = border.size - collider.size - 1;
+		console.log(getAngularDistance(collider.pos[1], objects[PolarEngine.player_id].pos[1]))
+		if(getAngularDistance(collider.pos[1], objects[PolarEngine.player_id].pos[1]) < player_width + 0.01){
+			collider.vel[0] *= -1;
+			collider.vel[1] = collider.vel[1]*0.5 + objects[PolarEngine.player_id].vel[1] * 0.1;
+			collider.pos[0] = border.size - objects[PolarEngine.player_id].size/2 - collider.size - 1;
 		}
-		else{
-			collider.vel[0] *= -0.9;
-			collider.vel[1] *= 0.9;
-			collider.pos[0] = border.size - collider.size - 1;
+		else if(Math.abs(collider.pos[0]) + collider.size >= border_radius){
+			PolarEngine.misses++;
+			collider.destroy();
 		}
+
+		// else{
+		// 	collider.vel[0] *= -0.9;
+		// 	collider.vel[1] *= 0.9;
+		// 	collider.pos[0] = border.size - collider.size - 1;
+		// }
 	}
 
 	function mod(a,b){
@@ -322,7 +331,7 @@ var PolarEngine = (function() {
 		for(var key in objects){
 			if(objects.hasOwnProperty(key)){
 				if(key != PolarEngine.border_id && key != PolarEngine.player_id){
-					if(Math.abs(objects[key].pos[0]) + objects[key].size > PolarEngine.border_radius){
+					if(Math.abs(objects[key].pos[0]) + objects[key].size > PolarEngine.border_radius - objects[PolarEngine.player_id].size/2){
 						objects[PolarEngine.border_id].handleCollision(objects[PolarEngine.border_id],objects[key]);
 					}
 				}
@@ -358,6 +367,7 @@ var PolarEngine = (function() {
 		player_width : player_width,
 		timestep_length : timestep_length,
 		getAngularDistance : getAngularDistance,
-		mod : mod
+		mod : mod,
+		misses :misses
 	}
 })();
