@@ -18,6 +18,8 @@ var PolarEngine = (function() {
 	var shadow_buffer;
 	var true_canvas;
 	var misses = 0;
+	var shader_buffer;
+	var shader;
 	function getNewObjectID(){
 		return object_counter++;
 	}
@@ -67,6 +69,9 @@ var PolarEngine = (function() {
 		shadow_buffer = document.createElement('canvas');
 		shadow_buffer.width = width;
 		shadow_buffer.height = height;
+		shader_buffer = document.createElement('canvas');
+		shader_buffer.width = width;
+		shader_buffer.height = height;
 		previous_time = new Date().getTime();
 	}
 
@@ -94,6 +99,19 @@ var PolarEngine = (function() {
 			}
 		}
 		ctx.restore();
+	}
+
+	function drawShader() {
+		if(!PolarEngine.shader){
+			return;
+		}
+		var ctx = shader_buffer.getContext('2d');
+		ctx.save();
+		ctx.clearRect(0,0,buffer.width,buffer.height);
+		ctx.translate(origin[0],origin[1]);
+		PolarEngine.shader(ctx);
+		ctx.restore();
+		buffer.getContext('2d').drawImage(shader_buffer,0,0);
 	}
 
 	function drawShadows() {
@@ -124,14 +142,22 @@ var PolarEngine = (function() {
 		buffer.getContext('2d').drawImage(shadow_buffer,0,0);
 	}
 
-	function circleHandler(context,object){
+	function circleHandler(context,object,stroke_color,fill_color){
+		if(!stroke_color){
+			stroke_color = "black";
+		}
+		if(!fill_color){
+			fill_color = "rgba(0,0,0,0)";
+		}
 		context.beginPath();
-		context.strokeStyle = "black";
+		context.strokeStyle = stroke_color;
+		context.fillStyle = fill_color;
 		context.lineWidth = 2;
 		var x = object.pos[0] * Math.cos(object.pos[1]);
 		var y = object.pos[0] * Math.sin(object.pos[1]);
 		context.arc(x,y,object.size,0,Math.PI*2,true);	
 		context.stroke();
+		context.fill();
 		if(debug){
 			context.beginPath();
 			context.moveTo(x,y);
@@ -348,6 +374,7 @@ var PolarEngine = (function() {
 		previous_time = current;
 		timestep(delta);
 		drawBase();
+		drawShader();
 		drawShadows();
 		drawToCanvas();
 	}
@@ -368,6 +395,7 @@ var PolarEngine = (function() {
 		timestep_length : timestep_length,
 		getAngularDistance : getAngularDistance,
 		mod : mod,
-		misses :misses
+		misses :misses,
+		shader : shader
 	}
 })();
