@@ -90,7 +90,7 @@ var PolarEngine = (function() {
 	function drawBase() {
 		var ctx = buffer.getContext('2d');
 		ctx.save();
-		ctx.fillStyle = '#fff';
+		ctx.fillStyle = '#BDB2F5';
 		ctx.fillRect(0,0,buffer.width,buffer.height);
 		ctx.translate(origin[0],origin[1]);
 		for (var key in objects) {
@@ -175,14 +175,20 @@ var PolarEngine = (function() {
 		}
 	}
 
-	function circleShadowHandler(context,object){
+	function circleShadowHandler(context,object,max,min){
+		if(!min){
+			min = 0;
+		}
+		if(!max){
+			max = 1;
+		}
 		context.beginPath();
 		var x = object.pos[0] * Math.cos(object.pos[1]);
 		var y = object.pos[0] * Math.sin(object.pos[1]);
 		context.arc(x,y,object.size*15 + 2,0,2*Math.PI);
 		var grd = context.createRadialGradient(x,y,object.size,x,y,object.size*15);
-		grd.addColorStop(0,'rgba(0,0,0,1)');
-		grd.addColorStop(1,'rgba(0,0,0,0)');
+		grd.addColorStop(0,'rgba(0,0,0,' + max + ')');
+		grd.addColorStop(1,'rgba(0,0,0,' + min + ')');
 		context.fillStyle = grd;
 		context.fill();
 		context.closePath();
